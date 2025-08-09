@@ -456,8 +456,9 @@ function initializeExperiment() {
             experimentData.positions.push({ name: food.name, x: initialX, y: initialY });
             experimentData.moveHistory.push({ timestamp: getCurrentTimestamp(), eventType: 'initialPlace', target: food.name, position: { x: initialX, y: initialY } });
             foodContainers[food.name] = foodContainer;
-            makeDraggable(foodContainer, dragHandle);
-        });
+            makeDraggable(foodContainer, dragHandle, food, { infoViewStartTime, lastViewedFood 
+            });
+
         updateStatusMessage('食品の青いバーをドラッグして自由に配置してください。');
         if (finishPlacementBtn) finishPlacementBtn.style.display = 'inline-block';
         if (goToFeedbackBtn) goToFeedbackBtn.style.display = 'none';
@@ -655,3 +656,95 @@ function updateStatusMessage(message) {
 }
 
 document.addEventListener('DOMContentLoaded', initializeApp);
+
+function makeDraggable(foodContainer, dragHandle, food, experimentScope) {
+    const { infoViewStartTime, lastViewedFood } = experimentScope;
+
+    const actionButton = dragHandle.querySelector('.info-button');
+    actionButton.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (currentMode === 'placement' || currentMode === 'clustering') {
+            if (experimentScope.infoViewStartTime && experimentScope.lastViewedFood) {
+                const duration = Math.floor((Date.now() - experimentScope.infoViewStartTime) / 1000);
+                experimentData.moveHistory.push({
+                    timestamp: getCurrentTimestamp(),
+                    eventType: 'infoViewEnd',
+                    target: experimentScope.lastViewedFood.name,
+                    details: { duration: duration }
+                });
+            }
+            displayFoodDetails(food);
+            experimentScope.infoViewStartTime = Date.now();
+            experimentScope.lastViewedFood = food;
+            experimentData.moveHistory.push({
+                timestamp: getCurrentTimestamp(),
+                eventType: 'infoViewStart',
+                target: food.name
+            });
+        }
+    });
+
+    dragHandle.onmousedown = (e) => {
+        if (experimentScope.infoViewStartTime && experimentScope.lastViewedFood) {
+            const duration = Math.floor((Date.now() - experimentScope.infoViewStartTime) / 1000);
+            experimentData.moveHistory.push({
+                timestamp: getCurrentTimestamp(),
+                eventType: 'infoViewEnd',
+                target: experimentScope.lastViewedFood.name,
+                details: { duration: duration }
+            });
+            experimentScope.infoViewStartTime = null;
+            experimentScope.lastViewedFood = null;
+        }
+        onMouseDown(e, foodContainer, dragHandle);
+    };
+}
+
+function onMouseDown(e, element, handle) {
+    if (currentMode !== 'placement' || e.button !== 0) {
+        handle.style.cursor = 'default';
+        return;
+    }
+    let isDragging = true;
+    element.classList.add('dragging');
+    handle.style.cursor = 'grabbing';
+
+    let iMouseX = e.clientX;
+    let iMouseY = e.clientY;
+    let iElemX = element.offsetLeft;
+    let iElemY = element.offsetTop;
+
+    const onMouseMove = (moveEvent) => {
+        if (!isDragging) return;
+        let nX = iElemX + (moveEvent.clientX - iMouseX);
+        let nY = iElemY + (moveEvent.clientY - iMouseY);
+        nX = Math.max(0, Math.min(nX, canvasContainer.clientWidth - element.offsetWidth));
+        nY = Math.max(0, Math.min(nY, canvasContainer.clientHeight - element.offsetHeight));
+        element.style.left = `${nX}px`;
+        element.style.top = `${nY}px`;
+    };
+
+    const onMouseUp = () => {
+        if (!isDragging) return;
+        isDragging = false;
+        element.classList.remove('dragging');
+        handle.style.cursor = (currentMode === 'placement') ? 'grab' : 'default';
+        document.removeEventListener('mousemove', onMouseMove);
+        document.removeEventListener('mouseup', onMouseUp);
+
+        const fX = element.offsetLeft, fY = element.offsetTop;
+        let pE = experimentData.positions.find(p => p.name === element.dataset.name);
+        if (pE) {
+            pE.x = fX;
+            pE.y = fY;
+        } else {
+            experimentData.positions.push({ name: element.dataset.name, x: fX, y: fY });
+        }
+        experimentData.moveHistory.push({ timestamp: getCurrentTimestamp(), eventType: 'dragEnd', target: element.dataset.name, position: { x: fX, y: fY } });
+    };
+
+    document.addEventListener('mousemove', onMouseMove);
+    document.addEventListener('mouseup', onMouseUp);
+
+    experimentData.moveHistory.push({ timestamp: getCurrentTimestamp(), eventType: 'dragStart', target: element.dataset.name, position: { x: iElemX, y: iElemY } });
+}
