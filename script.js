@@ -348,6 +348,8 @@ function initializeApp() {
 }
 
 function initializeExperiment() {
+    let infoViewStartTime = null; // ★追加：情報閲覧の開始時間
+    let lastViewedFood = null;  // ★追加：最後に閲覧した食品
     console.log('[DEBUG] initializeExperiment: Started. Current mode is:', currentMode);
     if (currentMode !== 'placement') {
         currentMode = 'placement';
@@ -387,12 +389,51 @@ function initializeExperiment() {
             const actionButton = document.createElement('div');
             actionButton.className = 'info-button'; actionButton.textContent = 'i';
             actionButton.title = `${food.label}について`;
+            // info-buttonのクリックイベント
             actionButton.addEventListener('click', (e) => {
                 e.stopPropagation();
                 if (currentMode === 'placement' || currentMode === 'clustering') {
+                    // もし前に食品情報を見ていたら、その閲覧を終了として記録
+                    if (infoViewStartTime && lastViewedFood) {
+                        const duration = Math.floor((Date.now() - infoViewStartTime) / 1000);
+                        experimentData.moveHistory.push({
+                            timestamp: getCurrentTimestamp(),
+                            eventType: 'infoViewEnd',
+                            target: lastViewedFood.name,
+                            details: { duration: duration }
+                        });
+                    }
+
+                    // 新しい食品の閲覧開始を記録
                     displayFoodDetails(food);
+                    infoViewStartTime = Date.now();
+                    lastViewedFood = food;
+                    experimentData.moveHistory.push({
+                        timestamp: getCurrentTimestamp(),
+                        eventType: 'infoViewStart',
+                        target: food.name
+                    });
                 }
             });
+
+            // ドラッグハンドルのマウスダウンイベント
+            handle.onmousedown = (e) => {
+                // もし食品情報を見ていたら、その閲覧を終了として記録
+                if (infoViewStartTime && lastViewedFood) {
+                    const duration = Math.floor((Date.now() - infoViewStartTime) / 1000);
+                    experimentData.moveHistory.push({
+                        timestamp: getCurrentTimestamp(),
+                        eventType: 'infoViewEnd',
+                        target: lastViewedFood.name,
+                        details: { duration: duration }
+                    });
+                    infoViewStartTime = null;
+                    lastViewedFood = null;
+                }
+                
+                // 元々のドラッグ処理を呼び出す
+                onMouseDown(e);
+            };
             dragHandle.appendChild(actionButton);
             foodContainer.appendChild(dragHandle);
 
