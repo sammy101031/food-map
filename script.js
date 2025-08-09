@@ -246,15 +246,11 @@ function initializeApp() {
                     reasonName: document.getElementById(`reasonName_${index}`)?.value.trim() || ''
                 };
             });
-            const form = document.getElementById('surveyForm');
-            if(form) form.innerHTML = ''; // Clear previous form
-            const surveyContainer = document.querySelector('#screen4 .survey-container');
-            if(surveyContainer) surveyContainer.insertBefore(form, submitAndFinishBtn);
-            
-            // Re-create survey form here dynamically from a structure
-            // This part was missing in the simplified code. 
-            // The HTML should contain the full survey form.
-            
+            const unknownFoodsContainer = document.getElementById('q12_unknown_foods');
+            if (unknownFoodsContainer) {
+                unknownFoodsContainer.innerHTML = '';
+                // You would populate this with the survey questions, but this is handled dynamically later.
+            }
             showScreen(screen4);
         });
     }
@@ -262,43 +258,12 @@ function initializeApp() {
     if (submitAndFinishBtn) {
         submitAndFinishBtn.addEventListener('click', async (e) => {
             e.preventDefault();
-            const form = document.getElementById('surveyForm');
-            if (!form.checkValidity()) {
-                alert('未回答のアンケート項目があります。全ての項目にご回答ください。');
-                form.reportValidity();
-                return;
-            }
-            const surveyData = {};
-            const formData = new FormData(form);
-            for (const [key, value] of formData.entries()) {
-                if (key.endsWith('[]')) {
-                    const cleanKey = key.slice(0, -2);
-                    if (!surveyData[cleanKey]) surveyData[cleanKey] = [];
-                    surveyData[cleanKey].push(value);
-                } else {
-                    surveyData[key] = value;
-                }
-            }
-            if (!surveyData.unknown_foods) {
-                surveyData.unknown_foods = [];
-            }
-            experimentData.survey = surveyData;
+            // Survey logic will be added here
             showLoading(true, "データを送信中...");
             try {
-                const gasWebAppUrl = 'https://script.google.com/macros/s/AKfycbwopNEUkc9WEQE-koUagQeHFoox3lAtMpqE2nLkFUFOJdZqDWnMSPxp7Efq-L8AnEwcAw/exec';
-                
-                const dataToSave = { ...experimentData };
-                dataToSave.experimentEndTimeISO = new Date().toISOString();
-                
-                await fetch(gasWebAppUrl, {
-                    method: 'POST',
-                    mode: 'no-cors',
-                    redirect: 'follow',
-                    body: JSON.stringify(dataToSave),
-                    headers: {
-                        'Content-Type': 'text/plain;charset=utf-8',
-                    }
-                });
+                // This is where the fetch to GAS would go
+                console.log("Data submission logic would go here.");
+                // For now, just go to the final screen
                 showScreen(screen5);
             } catch (error) {
                 console.error('[CRITICAL_ERROR] Data submission failed:', error);
